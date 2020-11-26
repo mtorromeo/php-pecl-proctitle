@@ -17,6 +17,14 @@
 #ifndef PHP_PROCTITLE_H
 #define PHP_PROCTITLE_H
 
+#if PHP_MAJOR_VERSION >= 8
+#define TSRMLS_CC
+#define TSRMLS_C
+#define TSRMLS_DC
+#define TSRMLS_D
+#define TSRMLS_FETCH()
+#endif
+
 #define PHP_PROCTITLE_VERSION "@PACKAGE_VERSION@"
 
 extern zend_module_entry proctitle_module_entry;
