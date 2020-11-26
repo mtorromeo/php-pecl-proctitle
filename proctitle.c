@@ -12,10 +12,6 @@
   | obtain it through the world-wide-web, please send a note to          |
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
-  | Author:                                                              |
-  +----------------------------------------------------------------------+
-
-  $Id$ 
 */
 
 #ifdef HAVE_CONFIG_H
@@ -162,13 +158,3 @@ zend_module_entry proctitle_module_entry = {
 #ifdef COMPILE_DL_PROCTITLE
 ZEND_GET_MODULE(proctitle)
 #endif
-
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: fdm=marker
- * vim: noet sw=4 ts=4
- */

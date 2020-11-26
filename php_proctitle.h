@@ -12,10 +12,6 @@
   | obtain it through the world-wide-web, please send a note to          |
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
-  | Author:                                                              |
-  +----------------------------------------------------------------------+
-
-  $Id$ 
 */
 
 #ifndef PHP_PROCTITLE_H
@@ -32,12 +28,3 @@ PHP_MINFO_FUNCTION(proctitle);
 PHP_FUNCTION(setproctitle);
 
 #endif	/* PHP_PROCTITLE_H */
-
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * indent-tabs-mode: t
- * End:
- */
