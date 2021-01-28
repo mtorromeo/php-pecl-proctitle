@@ -1,0 +1,24 @@
+language: php
+
+php:
+  - 7.0
+  - 7.1
+  - 7.2
+  - 7.3
+  - 7.4
+  - 8.0
+  - nightly
+
+env:
+  global:
+    - REPORT_EXIT_STATUS=1
+
+before_install:
+  - sudo apt-get -q update
+  - sudo apt-get -y install libbsd-dev
+
+install:
+  - phpize && ./configure --enable-proctitle && make
+
+script:
+  - TEST_PHP_ARGS="--offline --show-diff --set-timeout 120" make test
