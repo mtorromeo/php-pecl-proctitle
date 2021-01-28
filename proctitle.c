@@ -28,12 +28,17 @@
 #include <sys/prctl.h>
 #endif
 
+#ifdef HAVE_SETPROCTITLE
+#include <bsd/unistd.h>
+#endif
+
 #include "php_proctitle.h"
 
 static char *argv0 = NULL;
-#define MAX_TITLE_LENGTH        128
 
-#ifndef PHP_SYSTEM_PROVIDES_SETPROCTITLE
+#ifndef HAVE_SETPROCTITLE
+#define MAX_TITLE_LENGTH 128
+
 static void setproctitle(char *title, int tlen)
 {
 	char    buffer[MAX_TITLE_LENGTH];
@@ -74,15 +79,14 @@ ZEND_END_ARG_INFO()
  */
 PHP_FUNCTION(setproctitle)
 {
-	char    *title;
-	long    tlen;
+	char *title;
+	long tlen;
 
-	if(zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",&title,
-			&tlen) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &title, &tlen) == FAILURE) {
 		RETURN_NULL();
 	}
 
-#ifndef PHP_SYSTEM_PROVIDES_SETPROCTITLE
+#ifndef HAVE_SETPROCTITLE
 	/* local (incompatible) setproctitle */
 	setproctitle(title, tlen);
 #else
@@ -90,31 +94,27 @@ PHP_FUNCTION(setproctitle)
 	setproctitle("%s", title);
 #endif
 }
-/* }}} */
 
 #if HAVE_PRCTL
-/* {{{ bool mixed setthreadtitle(string title)
-   Sets the thread name */
+/* Sets the thread name */
 PHP_FUNCTION(setthreadtitle)
 {
 	char *title;
-	int title_len;
+	int tlen;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &title, &title_len) == FAILURE) {
-		return;
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &title, &tlen) == FAILURE) {
+		RETURN_NULL();
 	}
+
 	if (0 == prctl(PR_SET_NAME, title, 0, 0, 0)) {
 		RETURN_TRUE;
 	} else {
 		RETURN_FALSE;
 	}
-
 }
-/* }}} */
 #endif
 
-/* {{{ proctitle_functions[]
- *
+/*
  * Every user visible function must have an entry in proctitle_functions[].
  */
 static const zend_function_entry proctitle_functions[] = {
@@ -122,27 +122,21 @@ static const zend_function_entry proctitle_functions[] = {
 #if HAVE_PRCTL
 	PHP_FE(setthreadtitle, arginfo_title)
 #endif
-	{NULL, NULL, NULL}	/* Must be the last line in proctitle_functions[] */
+	{NULL, NULL, NULL}
 };
-/* }}} */
 
-/* {{{ PHP_MINFO_FUNCTION
- */
 PHP_MINFO_FUNCTION(proctitle)
 {
 	php_info_print_table_start();
 	php_info_print_table_header(2, "proctitle support", "enabled");
 	php_info_print_table_end();
 }
-/* }}} */
 
-/* {{{ proctitle_module_entry
- */
 zend_module_entry proctitle_module_entry = {
 	STANDARD_MODULE_HEADER,
 	"proctitle",
 	proctitle_functions,
-#ifndef PHP_SYSTEM_PROVIDES_SETPROCTITLE
+#ifndef HAVE_SETPROCTITLE
 	PHP_MINIT(proctitle),
 #else
 	NULL,
@@ -154,7 +148,6 @@ zend_module_entry proctitle_module_entry = {
 	PHP_PROCTITLE_VERSION,
 	STANDARD_MODULE_PROPERTIES
 };
-/* }}} */
 
 #ifdef COMPILE_DL_PROCTITLE
 ZEND_GET_MODULE(proctitle)
