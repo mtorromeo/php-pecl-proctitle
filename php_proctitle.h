@@ -25,7 +25,7 @@
 #define TSRMLS_FETCH()
 #endif
 
-#define PHP_PROCTITLE_VERSION "@PACKAGE_VERSION@"
+#define PHP_PROCTITLE_VERSION "@pear_version@"
 
 extern zend_module_entry proctitle_module_entry;
 #define phpext_proctitle_ptr &proctitle_module_entry

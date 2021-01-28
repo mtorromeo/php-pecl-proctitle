@@ -103,7 +103,7 @@ PHP_FUNCTION(setthreadtitle)
 	int tlen;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &title, &tlen) == FAILURE) {
-		RETURN_NULL();
+		return;
 	}
 
 	if (0 == prctl(PR_SET_NAME, title, 0, 0, 0)) {
@@ -122,14 +122,17 @@ static const zend_function_entry proctitle_functions[] = {
 #if HAVE_PRCTL
 	PHP_FE(setthreadtitle, arginfo_title)
 #endif
-	{NULL, NULL, NULL}
+	ZEND_FE_END
 };
 
 PHP_MINFO_FUNCTION(proctitle)
 {
 	php_info_print_table_start();
 	php_info_print_table_header(2, "proctitle support", "enabled");
+	php_info_print_table_row(2, "Version", PHP_PROCTITLE_VERSION);
 	php_info_print_table_end();
+
+	DISPLAY_INI_ENTRIES();
 }
 
 zend_module_entry proctitle_module_entry = {
