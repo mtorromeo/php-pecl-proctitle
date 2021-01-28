@@ -22,3 +22,4 @@ install:
 
 script:
   - TEST_PHP_ARGS="--offline --show-diff --set-timeout 120" make test
+  - pear package

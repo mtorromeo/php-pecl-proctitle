@@ -18,11 +18,11 @@
 #include "config.h"
 #endif
 
+#include <SAPI.h>
 #include <php.h>
 #include "ext/standard/info.h"
-#include <SAPI.h>
-#include <dlfcn.h>
-#include <string.h>
+#include "php_proctitle.h"
+#include "proctitle_arginfo.h"
 
 #ifdef HAVE_PRCTL
 #include <sys/prctl.h>
@@ -32,7 +32,12 @@
 #include <bsd/unistd.h>
 #endif
 
-#include "php_proctitle.h"
+/* For compatibility with older PHP versions */
+#ifndef ZEND_PARSE_PARAMETERS_NONE
+#define ZEND_PARSE_PARAMETERS_NONE() \
+	ZEND_PARSE_PARAMETERS_START(0, 0) \
+	ZEND_PARSE_PARAMETERS_END()
+#endif
 
 static char *argv0 = NULL;
 
@@ -41,90 +46,98 @@ static char *argv0 = NULL;
 
 static void setproctitle(char *title, int tlen)
 {
-	char    buffer[MAX_TITLE_LENGTH];
+	char buffer[MAX_TITLE_LENGTH];
 
-	if(!argv0) {
+	if (!argv0)
+	{
 		return; /* no point running all this if we got no argv0 */
 	}
 
 	/* space padding */
 	memset(buffer, 0x20, MAX_TITLE_LENGTH);
-	buffer[MAX_TITLE_LENGTH-1] = '\0';
+	buffer[MAX_TITLE_LENGTH - 1] = '\0';
 
 	/* title too long => truncate */
-	if (tlen >= (MAX_TITLE_LENGTH-1)) tlen = (MAX_TITLE_LENGTH-1);
+	if (tlen >= (MAX_TITLE_LENGTH - 1))
+	{
+		tlen = (MAX_TITLE_LENGTH - 1);
+	}
 
 	memcpy(buffer, title, tlen);
 
 	snprintf(argv0, MAX_TITLE_LENGTH, "%s", buffer);
 }
 
+/* {{{ PHP_MINIT_FUNCTION */
 PHP_MINIT_FUNCTION(proctitle)
 {
 	sapi_module_struct *symbol = NULL;
 
 	symbol = &sapi_module;
 
-	if( symbol )
+	if (symbol)
+	{
 		argv0 = symbol->executable_location;
+	}
 }
+/* }}} */
 #endif
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_title, 0, 0, 1)
-    ZEND_ARG_INFO(0, title)
-ZEND_END_ARG_INFO()
-
-/*
- * Changes the current process' title in system's list of processes
- */
+/* {{{ void setproctitle( string $title ) */
 PHP_FUNCTION(setproctitle)
 {
 	char *title;
-	long tlen;
+	size_t title_len;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &title, &tlen) == FAILURE) {
-		RETURN_NULL();
-	}
+	ZEND_PARSE_PARAMETERS_START(0, 1)
+		Z_PARAM_STRING(title, title_len)
+	ZEND_PARSE_PARAMETERS_END();
 
 #ifndef HAVE_SETPROCTITLE
 	/* local (incompatible) setproctitle */
-	setproctitle(title, tlen);
+	setproctitle(title, title_len);
 #else
 	/* let's use system setproctitle() (BSD or compatible) */
 	setproctitle("%s", title);
 #endif
+/* }}}*/
 }
 
 #if HAVE_PRCTL
-/* Sets the thread name */
+/* {{{ bool setthreadtitle( string $title ) */
 PHP_FUNCTION(setthreadtitle)
 {
 	char *title;
-	int tlen;
+	size_t title_len;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &title, &tlen) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(0, 1)
+		Z_PARAM_STRING(title, title_len)
+	ZEND_PARSE_PARAMETERS_END();
 
-	if (0 == prctl(PR_SET_NAME, title, 0, 0, 0)) {
+	if (0 == prctl(PR_SET_NAME, title, 0, 0, 0))
+	{
 		RETURN_TRUE;
-	} else {
+	}
+	else
+	{
 		RETURN_FALSE;
 	}
 }
+/* }}}*/
 #endif
 
-/*
- * Every user visible function must have an entry in proctitle_functions[].
- */
-static const zend_function_entry proctitle_functions[] = {
-	PHP_FE(setproctitle, arginfo_title)
-#if HAVE_PRCTL
-	PHP_FE(setthreadtitle, arginfo_title)
+/* {{{ PHP_RINIT_FUNCTION */
+PHP_RINIT_FUNCTION(proctitle)
+{
+#if defined(ZTS) && defined(COMPILE_DL_PROCTITLE)
+	ZEND_TSRMLS_CACHE_UPDATE();
 #endif
-	ZEND_FE_END
-};
 
+	return SUCCESS;
+}
+/* }}} */
+
+/* {{{ PHP_MINFO_FUNCTION */
 PHP_MINFO_FUNCTION(proctitle)
 {
 	php_info_print_table_start();
@@ -134,24 +147,30 @@ PHP_MINFO_FUNCTION(proctitle)
 
 	DISPLAY_INI_ENTRIES();
 }
+/* }}} */
 
+/* {{{ proctitle_module_entry */
 zend_module_entry proctitle_module_entry = {
 	STANDARD_MODULE_HEADER,
-	"proctitle",
-	proctitle_functions,
+	"proctitle",					/* Extension name */
+	ext_functions,					/* zend_function_entry */
 #ifndef HAVE_SETPROCTITLE
-	PHP_MINIT(proctitle),
+	PHP_MINIT(proctitle),			/* PHP_MINIT - Module initialization */
 #else
-	NULL,
+	NULL,							/* PHP_MINIT - Module initialization */
 #endif
-	NULL,
-	NULL,
-	NULL,
-	PHP_MINFO(proctitle),
-	PHP_PROCTITLE_VERSION,
+	NULL,							/* PHP_MSHUTDOWN - Module shutdown */
+	PHP_RINIT(proctitle),			/* PHP_RINIT - Request initialization */
+	NULL,							/* PHP_RSHUTDOWN - Request shutdown */
+	PHP_MINFO(proctitle),			/* PHP_MINFO - Module info */
+	PHP_PROCTITLE_VERSION,		/* Version */
 	STANDARD_MODULE_PROPERTIES
 };
+/* }}} */
 
 #ifdef COMPILE_DL_PROCTITLE
+# ifdef ZTS
+ZEND_TSRMLS_CACHE_DEFINE()
+# endif
 ZEND_GET_MODULE(proctitle)
 #endif
