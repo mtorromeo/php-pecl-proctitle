@@ -36,7 +36,7 @@ https://pear.php.net/dtd/package-2.0.xsd">
       <file name="config.m4" role="src" />
       <file name="proctitle.c" role="src" />
       <file name="php_proctitle.h" role="src">
-        <tasks:replace from="@pear_version@" to="version" type="package-info" />
+        <replace from="@pear_version@" to="version" type="package-info" />
       </file>
       <dir name="tests">
         <file name="000-load.phpt" role="test" />
