@@ -14,23 +14,22 @@
   +----------------------------------------------------------------------+
 */
 
-#ifdef HAVE_CONFIG_H
+#if defined(HAVE_CONFIG_H)
 #include "config.h"
 #endif
 
-#include <SAPI.h>
 #include <php.h>
 #include "ext/standard/info.h"
-#include "php_proctitle.h"
-#include "proctitle_arginfo.h"
+#include <SAPI.h>
+#include <dlfcn.h>
+#include <string.h>
 
-#ifdef HAVE_PRCTL
+#if defined(HAVE_PRCTL)
 #include <sys/prctl.h>
 #endif
 
-#ifdef HAVE_SETPROCTITLE
-#include <bsd/unistd.h>
-#endif
+#include "php_proctitle.h"
+#include "proctitle_arginfo.h"
 
 /* For compatibility with older PHP versions */
 #ifndef ZEND_PARSE_PARAMETERS_NONE
@@ -39,11 +38,11 @@
 	ZEND_PARSE_PARAMETERS_END()
 #endif
 
-static char *argv0 = NULL;
-
-#ifndef HAVE_SETPROCTITLE
 #define MAX_TITLE_LENGTH 128
+static char *argv0 = NULL;
+static char origtitle[MAX_TITLE_LENGTH];
 
+#if! defined(HAVE_SETPROCTITLE)
 static void setproctitle(char *title, int tlen)
 {
 	char buffer[MAX_TITLE_LENGTH];
@@ -67,21 +66,39 @@ static void setproctitle(char *title, int tlen)
 
 	snprintf(argv0, MAX_TITLE_LENGTH, "%s", buffer);
 }
+#endif
 
 /* {{{ PHP_MINIT_FUNCTION */
 PHP_MINIT_FUNCTION(proctitle)
 {
-	sapi_module_struct *symbol = NULL;
+	sapi_module_struct *symbol = &sapi_module;
 
-	symbol = &sapi_module;
-
-	if (symbol)
-	{
-		argv0 = symbol->executable_location;
+	if (!symbol) {
+		return FAILURE;
 	}
+
+	argv0 = symbol->executable_location;
+	// take snapshot of original argv0, php will try to free
+	// this memory and we have to set it back as it was before
+	memcpy(origtitle, argv0, MAX_TITLE_LENGTH);
+
+#if defined(HAVE_SETPROCTITLE)
+	char* noenv[0];
+	setproctitle_init(0, &argv0, noenv);
+#endif
+
+	return SUCCESS;
 }
 /* }}} */
-#endif
+
+/* {{{ PHP_MSHUTDOWN_FUNCTION */
+PHP_MSHUTDOWN_FUNCTION(proctitle)
+{
+	// restore argv0 at shutdown
+	memcpy(argv0, origtitle, MAX_TITLE_LENGTH);
+	return SUCCESS;
+}
+/* }}} */
 
 /* {{{ void setproctitle( string $title ) */
 PHP_FUNCTION(setproctitle)
@@ -89,28 +106,27 @@ PHP_FUNCTION(setproctitle)
 	char *title;
 	size_t title_len;
 
-	ZEND_PARSE_PARAMETERS_START(0, 1)
+	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_STRING(title, title_len)
 	ZEND_PARSE_PARAMETERS_END();
 
-#ifndef HAVE_SETPROCTITLE
+#if defined(HAVE_SETPROCTITLE)
+	setproctitle("%s", title);
+#else
 	/* local (incompatible) setproctitle */
 	setproctitle(title, title_len);
-#else
-	/* let's use system setproctitle() (BSD or compatible) */
-	setproctitle("%s", title);
 #endif
 /* }}}*/
 }
 
-#if HAVE_PRCTL
+#if defined(HAVE_PRCTL)
 /* {{{ bool setthreadtitle( string $title ) */
 PHP_FUNCTION(setthreadtitle)
 {
 	char *title;
 	size_t title_len;
 
-	ZEND_PARSE_PARAMETERS_START(0, 1)
+	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_STRING(title, title_len)
 	ZEND_PARSE_PARAMETERS_END();
 
@@ -154,16 +170,12 @@ zend_module_entry proctitle_module_entry = {
 	STANDARD_MODULE_HEADER,
 	"proctitle",					/* Extension name */
 	ext_functions,					/* zend_function_entry */
-#ifndef HAVE_SETPROCTITLE
 	PHP_MINIT(proctitle),			/* PHP_MINIT - Module initialization */
-#else
-	NULL,							/* PHP_MINIT - Module initialization */
-#endif
-	NULL,							/* PHP_MSHUTDOWN - Module shutdown */
+	PHP_MSHUTDOWN(proctitle),		/* PHP_MSHUTDOWN - Module shutdown */
 	PHP_RINIT(proctitle),			/* PHP_RINIT - Request initialization */
 	NULL,							/* PHP_RSHUTDOWN - Request shutdown */
 	PHP_MINFO(proctitle),			/* PHP_MINFO - Module info */
-	PHP_PROCTITLE_VERSION,		/* Version */
+	PHP_PROCTITLE_VERSION,			/* Version */
 	STANDARD_MODULE_PROPERTIES
 };
 /* }}} */
