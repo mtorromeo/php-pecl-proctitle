@@ -13,7 +13,7 @@ env:
 
 before_install:
   - sudo apt-get -q update
-  - sudo apt-get -y install libbsd-dev
+  - sudo apt-get -y install pkg-config libbsd-dev
 
 install:
   - phpize && ./configure --enable-proctitle --without-libbsd && make
