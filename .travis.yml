@@ -16,7 +16,7 @@ before_install:
   - sudo apt-get -y install libbsd-dev
 
 install:
-  - phpize && ./configure --enable-proctitle && make
+  - phpize && ./configure --enable-proctitle --without-libbsd && make
 
 script:
   - TEST_PHP_ARGS="--offline --show-diff --set-timeout 120" make test
